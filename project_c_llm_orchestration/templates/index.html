@@ -1,0 +1,272 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>LLM 多步驟編排系統</title>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", "Microsoft JhengHei", sans-serif;
+            background: #f0f2f5;
+            color: #1f2937;
+        }
+        .header {
+            background: linear-gradient(135deg, #7c3aed, #5b21b6);
+            color: white;
+            padding: 18px 24px;
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.15);
+        }
+        .header h1 { font-size: 20px; }
+        .header .badge { background: #a78bfa; font-size: 11px; padding: 2px 8px; border-radius: 10px; }
+        .container { max-width: 900px; margin: 24px auto; padding: 0 16px; }
+
+        /* 輸入區 */
+        .input-card {
+            background: white;
+            border-radius: 16px;
+            padding: 24px;
+            box-shadow: 0 1px 4px rgba(0,0,0,0.08);
+            margin-bottom: 20px;
+        }
+        .input-card h2 { font-size: 17px; margin-bottom: 14px; }
+        .input-row { display: flex; gap: 10px; }
+        .input-row input {
+            flex: 1;
+            padding: 12px 16px;
+            border: 2px solid #e5e7eb;
+            border-radius: 12px;
+            font-size: 15px;
+            outline: none;
+        }
+        .input-row input:focus { border-color: #7c3aed; }
+        .input-row button {
+            padding: 12px 24px;
+            background: linear-gradient(135deg, #7c3aed, #6d28d9);
+            color: white;
+            border: none;
+            border-radius: 12px;
+            font-size: 15px;
+            cursor: pointer;
+            font-weight: 500;
+            white-space: nowrap;
+        }
+        .input-row button:hover { transform: translateY(-1px); box-shadow: 0 3px 8px rgba(124,58,237,0.3); }
+        .quick-row { margin-top: 10px; display: flex; gap: 8px; flex-wrap: wrap; }
+        .quick-item {
+            padding: 6px 14px;
+            background: #f5f3ff;
+            border: 1px solid #e5e7eb;
+            border-radius: 18px;
+            font-size: 13px;
+            cursor: pointer;
+        }
+        .quick-item:hover { background: #7c3aed; color: white; border-color: #7c3aed; }
+
+        /* 統計列 */
+        .stats-row {
+            display: flex;
+            gap: 12px;
+            margin-bottom: 20px;
+        }
+        .stat-box {
+            flex: 1;
+            background: white;
+            border-radius: 12px;
+            padding: 16px;
+            text-align: center;
+            box-shadow: 0 1px 3px rgba(0,0,0,0.06);
+        }
+        .stat-box .num { font-size: 32px; font-weight: 700; }
+        .stat-box .label { font-size: 12px; color: #6b7280; margin-top: 2px; }
+        .stat-box.purple .num { color: #7c3aed; }
+        .stat-box.red .num { color: #dc2626; }
+        .stat-box.orange .num { color: #d97706; }
+
+        /* 錯誤 */
+        .error { background: #fef2f2; border: 1px solid #fecaca; color: #dc2626; padding: 12px; border-radius: 10px; margin-bottom: 16px; font-size: 14px; }
+
+        /* 流程步驟 */
+        .pipeline-card {
+            background: white;
+            border-radius: 16px;
+            padding: 24px;
+            box-shadow: 0 1px 4px rgba(0,0,0,0.08);
+            margin-bottom: 20px;
+        }
+        .pipeline-card h3 { font-size: 16px; margin-bottom: 16px; }
+        .step {
+            display: flex;
+            align-items: flex-start;
+            gap: 14px;
+            margin-bottom: 14px;
+        }
+        .step-num {
+            width: 32px;
+            height: 32px;
+            background: linear-gradient(135deg, #7c3aed, #6d28d9);
+            color: white;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 14px;
+            font-weight: 600;
+            flex-shrink: 0;
+        }
+        .step-content { flex: 1; }
+        .step-name { font-size: 13px; color: #6b7280; }
+        .step-result {
+            margin-top: 4px;
+            padding: 8px 12px;
+            background: #f5f3ff;
+            border-radius: 8px;
+            font-size: 14px;
+            border-left: 3px solid #7c3aed;
+        }
+        .step-arrow {
+            width: 32px;
+            text-align: center;
+            color: #d1d5db;
+            font-size: 18px;
+            margin-bottom: 8px;
+        }
+
+        /* 最終結果 */
+        .final-box {
+            padding: 16px;
+            border-radius: 12px;
+            margin-top: 16px;
+            font-weight: 500;
+        }
+        .final-box.high { background: #fef2f2; border: 1px solid #fecaca; color: #dc2626; }
+        .final-box.medium { background: #fffbeb; border: 1px solid #fde68a; color: #d97706; }
+        .final-box.low { background: #f0fdf4; border: 1px solid #bbf7d0; color: #16a34a; }
+
+        /* 歷史 */
+        .history h2 { font-size: 17px; margin-bottom: 14px; }
+        .history-item {
+            background: white;
+            border-radius: 12px;
+            padding: 14px 18px;
+            margin-bottom: 8px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            box-shadow: 0 1px 2px rgba(0,0,0,0.04);
+        }
+        .history-item .desc { font-size: 14px; }
+        .history-item .meta { font-size: 12px; color: #9ca3af; }
+        .history-item .sev {
+            padding: 4px 12px;
+            border-radius: 16px;
+            font-size: 12px;
+            font-weight: 600;
+        }
+        .sev.s-high { background: #fef2f2; color: #dc2626; }
+        .sev.s-medium { background: #fffbeb; color: #d97706; }
+        .sev.s-low { background: #f0fdf4; color: #16a34a; }
+        .empty { text-align: center; color: #9ca3af; padding: 30px; font-size: 14px; }
+    </style>
+</head>
+<body>
+    <div class="header">
+        <h1>LLM 多步驟編排系統</h1>
+        <span class="badge">LangChain</span>
+    </div>
+
+    <div class="container">
+        <!-- 輸入區 -->
+        <div class="input-card">
+            <h2>輸入違規事件</h2>
+            <form action="/process" method="post">
+                <div class="input-row">
+                    <input type="text" name="violation" placeholder="例如：A區工人沒戴安全帽" required id="violationInput">
+                    <button type="submit">AI 處理</button>
+                </div>
+            </form>
+            <div class="quick-row">
+                <div class="quick-item" onclick="fill(this)">A區工人沒戴安全帽</div>
+                <div class="quick-item" onclick="fill(this)">高空作業未繫安全帶</div>
+                <div class="quick-item" onclick="fill(this)">逃生通道被雜物堵住</div>
+                <div class="quick-item" onclick="fill(this)">工地噪音超過90分貝</div>
+                <div class="quick-item" onclick="fill(this)">化學品桶未張貼標示</div>
+            </div>
+        </div>
+
+        <!-- 統計 -->
+        <div class="stats-row">
+            <div class="stat-box purple">
+                <div class="num">{{ stats.total }}</div>
+                <div class="label">累積事件</div>
+            </div>
+            <div class="stat-box red">
+                <div class="num">{{ stats.high }}</div>
+                <div class="label">嚴重違規</div>
+            </div>
+            <div class="stat-box orange">
+                <div class="num">{{ stats.alert_count }}</div>
+                <div class="label">已告警</div>
+            </div>
+        </div>
+
+        {% if error %}
+        <div class="error">{{ error }}</div>
+        {% endif %}
+
+        <!-- 流程結果 -->
+        {% if result %}
+        <div class="pipeline-card">
+            <h3>處理流程：{{ result.event.violation }}</h3>
+
+            {% for s in result.steps %}
+            <div class="step">
+                <div class="step-num">{{ s.step }}</div>
+                <div class="step-content">
+                    <div class="step-name">{{ s.name }}</div>
+                    <div class="step-result">{{ s.result }}</div>
+                </div>
+            </div>
+            {% if not loop.last %}
+            <div class="step-arrow">↓</div>
+            {% endif %}
+            {% endfor %}
+
+            <div class="final-box {{ 'high' if '高' in result.event.severity else 'medium' if '中' in result.event.severity else 'low' }}">
+                告警：{{ result.event.alert }}<br>
+                通知主管：{{ result.event.notify }}
+            </div>
+        </div>
+        {% endif %}
+
+        <!-- 歷史 -->
+        <div class="history">
+            <h2>處理紀錄</h2>
+            {% if history %}
+                {% for e in history[:10] %}
+                <div class="history-item">
+                    <div>
+                        <div class="desc">{{ e.violation }}</div>
+                        <div class="meta">{{ e.timestamp }} · {{ e.type }} · {{ e.alert }}</div>
+                    </div>
+                    <span class="sev s-{{ 'high' if '高' in e.severity else 'medium' if '中' in e.severity else 'low' }}">
+                        {{ e.severity }}
+                    </span>
+                </div>
+                {% endfor %}
+            {% else %}
+                <div class="empty">尚無處理紀錄</div>
+            {% endif %}
+        </div>
+    </div>
+
+    <script>
+        function fill(el) {
+            document.getElementById('violationInput').value = el.textContent;
+        }
+    </script>
+</body>
+</html>
