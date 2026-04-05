@@ -1,0 +1,130 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>AI Safety Monitor | Demo</title>
+<style>
+*{margin:0;padding:0;box-sizing:border-box;}
+:root{--bg:#000;--s:rgba(255,255,255,0.04);--b:rgba(255,255,255,0.07);--t1:rgba(255,255,255,0.92);--t2:rgba(255,255,255,0.55);--t3:rgba(255,255,255,0.3);--accent:#ff453a;--green:#30d158;--orange:#ff9f0a;--r:16px;--font:"SF Pro Display",-apple-system,"Segoe UI","Microsoft JhengHei",sans-serif;}
+body{font-family:var(--font);background:var(--bg);color:var(--t1);min-height:100vh;-webkit-font-smoothing:antialiased;}
+
+nav{position:sticky;top:0;z-index:10;background:rgba(0,0,0,0.72);backdrop-filter:saturate(180%) blur(20px);border-bottom:1px solid rgba(255,255,255,0.06);}
+nav .inner{max-width:960px;margin:0 auto;padding:0 24px;height:52px;display:flex;align-items:center;justify-content:space-between;}
+nav .logo{font-size:15px;font-weight:600;}
+nav .back{font-size:13px;color:#2997ff;text-decoration:none;}
+
+.hero{padding:60px 24px 40px;text-align:center;}
+.hero h1{font-size:clamp(28px,5vw,40px);font-weight:700;letter-spacing:-0.03em;margin-bottom:8px;}
+.hero p{color:var(--t2);font-size:15px;max-width:500px;margin:0 auto 16px;line-height:1.6;}
+.demo-badge{display:inline-block;padding:4px 14px;border-radius:980px;background:rgba(255,159,10,0.12);color:var(--orange);font-size:12px;font-weight:600;}
+
+.container{max-width:960px;margin:0 auto;padding:0 24px 60px;}
+.card{background:var(--s);border:1px solid var(--b);border-radius:var(--r);padding:24px;margin-bottom:20px;}
+.card h2{font-size:13px;font-weight:600;color:var(--t3);text-transform:uppercase;letter-spacing:0.06em;margin-bottom:16px;}
+
+.upload-area{border:2px dashed rgba(255,255,255,0.1);border-radius:12px;padding:36px;text-align:center;cursor:pointer;transition:all 0.3s;margin-bottom:16px;}
+.upload-area:hover{border-color:var(--accent);background:rgba(255,69,58,0.04);}
+.upload-area .icon{font-size:32px;margin-bottom:8px;}
+.upload-area p{color:var(--t3);font-size:14px;}
+
+.btn{display:inline-block;padding:10px 24px;border-radius:980px;border:none;font-size:14px;font-weight:500;cursor:pointer;transition:all 0.2s;text-align:center;}
+.btn-red{background:var(--accent);color:#fff;}
+.btn-red:hover{filter:brightness(1.15);}
+
+.alert{padding:14px 18px;border-radius:12px;font-size:14px;line-height:1.6;margin-bottom:16px;}
+.alert-danger{background:rgba(255,69,58,0.1);border:1px solid rgba(255,69,58,0.2);color:#ff6961;}
+
+.stat-row{display:grid;grid-template-columns:repeat(3,1fr);gap:12px;margin-bottom:20px;}
+.stat{text-align:center;padding:16px;background:rgba(255,255,255,0.03);border-radius:12px;}
+.stat .num{font-size:32px;font-weight:800;}
+.stat .label{font-size:11px;color:var(--t3);margin-top:4px;}
+
+.violation{padding:12px 16px;border-radius:10px;margin-bottom:8px;border-left:3px solid;font-size:14px;}
+.v-high{background:rgba(255,69,58,0.08);border-color:var(--accent);}
+.v-medium{background:rgba(255,159,10,0.08);border-color:var(--orange);}
+.v-type{font-weight:600;margin-bottom:2px;}
+.v-reg{font-size:12px;color:var(--t3);margin-top:4px;}
+
+.history-item{padding:12px 0;border-bottom:1px solid rgba(255,255,255,0.04);display:flex;justify-content:space-between;align-items:center;font-size:14px;}
+.history-item:last-child{border-bottom:none;}
+.h-id{font-weight:600;color:#2997ff;}
+.h-score{font-size:20px;font-weight:700;}
+
+.tags{display:flex;gap:6px;flex-wrap:wrap;margin-top:20px;}
+.tag{padding:4px 12px;border-radius:980px;font-size:11px;background:rgba(255,255,255,0.05);color:var(--t2);}
+footer{text-align:center;padding:32px;font-size:12px;color:var(--t3);}
+</style>
+</head>
+<body>
+
+<nav><div class="inner"><div class="logo">AI Safety Monitor</div><a class="back" href="../index.html">&larr; Portfolio</a></div></nav>
+
+<div class="hero">
+  <h1>AI 工安監控系統</h1>
+  <p>Upload construction site photos &rarr; Gemini Vision AI analysis &rarr; structured safety report</p>
+  <span class="demo-badge">Static Demo</span>
+</div>
+
+<div class="container">
+
+  <div class="card">
+    <h2>Upload Image</h2>
+    <div class="upload-area">
+      <div class="icon">📷</div>
+      <p>Click to upload or drag &amp; drop an image</p>
+    </div>
+    <div style="text-align:center;">
+      <button class="btn btn-red" onclick="document.getElementById('result').style.display='block';this.textContent='Analysis Complete';">Simulate AI Analysis</button>
+    </div>
+  </div>
+
+  <div id="result" style="display:none;">
+    <div class="card">
+      <h2>Report RPT-0001 &mdash; 2026-04-05 15:30:22</h2>
+
+      <div class="alert alert-danger">
+        工地 A 區偵測到多項違規：2 人未佩戴安全帽、1 人未穿反光背心，安全評分偏低，建議立即改善。
+      </div>
+
+      <div class="stat-row">
+        <div class="stat"><div class="num" style="color:#2997ff;">5</div><div class="label">People Detected</div></div>
+        <div class="stat"><div class="num" style="color:var(--accent);">3</div><div class="label">Violations</div></div>
+        <div class="stat"><div class="num" style="color:var(--orange);">35</div><div class="label">Safety Score</div></div>
+      </div>
+
+      <h2>Violations</h2>
+      <div class="violation v-high">
+        <div class="v-type">[HIGH] no_helmet &mdash; A區鷹架平台</div>
+        <div class="v-reg">職安法第 281 條：雇主應使勞工確實使用安全帽。罰鍰 3~30 萬元。</div>
+      </div>
+      <div class="violation v-high">
+        <div class="v-type">[HIGH] no_helmet &mdash; A區地面層</div>
+        <div class="v-reg">職安法第 281 條：雇主應使勞工確實使用安全帽。罰鍰 3~30 萬元。</div>
+      </div>
+      <div class="violation v-medium">
+        <div class="v-type">[MEDIUM] no_vest &mdash; B區車輛通行道</div>
+        <div class="v-reg">職安法第 277 條：有車輛通行區域應穿著反光背心。罰鍰 3~15 萬元。</div>
+      </div>
+
+      <p style="margin-top:16px;font-size:13px;color:var(--t3);">
+        Scene: Construction site with scaffolding. Multiple workers observed, some without PPE.
+      </p>
+    </div>
+  </div>
+
+  <div class="card">
+    <h2>History</h2>
+    <div class="history-item"><div><span class="h-id">RPT-0003</span> &mdash; 4 people, 1 violation</div><div class="h-score" style="color:var(--orange);">62/100</div></div>
+    <div class="history-item"><div><span class="h-id">RPT-0002</span> &mdash; 3 people, 0 violations</div><div class="h-score" style="color:var(--green);">95/100</div></div>
+    <div class="history-item"><div><span class="h-id">RPT-0001</span> &mdash; 5 people, 3 violations</div><div class="h-score" style="color:var(--accent);">35/100</div></div>
+  </div>
+
+  <div class="tags">
+    <span class="tag">Gemini Vision</span><span class="tag">JSON Schema</span><span class="tag">Structured Output</span><span class="tag">Pillow</span><span class="tag">FastAPI</span>
+  </div>
+</div>
+
+<footer>AI Safety Monitor &mdash; Static Demo &middot; Built by Reyna Kao</footer>
+</body>
+</html>

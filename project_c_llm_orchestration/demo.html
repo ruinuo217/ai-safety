@@ -1,0 +1,193 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>LLM Orchestration | Demo</title>
+<style>
+*{margin:0;padding:0;box-sizing:border-box;}
+:root{--bg:#000;--s:rgba(255,255,255,0.04);--b:rgba(255,255,255,0.07);--t1:rgba(255,255,255,0.92);--t2:rgba(255,255,255,0.55);--t3:rgba(255,255,255,0.3);--accent:#bf5af2;--blue:#2997ff;--green:#30d158;--red:#ff453a;--orange:#ff9f0a;--r:16px;--font:"SF Pro Display",-apple-system,"Segoe UI","Microsoft JhengHei",sans-serif;--mono:"SF Mono","Cascadia Code",monospace;}
+body{font-family:var(--font);background:var(--bg);color:var(--t1);min-height:100vh;-webkit-font-smoothing:antialiased;}
+
+nav{position:sticky;top:0;z-index:10;background:rgba(0,0,0,0.72);backdrop-filter:saturate(180%) blur(20px);border-bottom:1px solid rgba(255,255,255,0.06);}
+nav .inner{max-width:900px;margin:0 auto;padding:0 24px;height:52px;display:flex;align-items:center;justify-content:space-between;}
+nav .logo{font-size:15px;font-weight:600;}
+nav .back{font-size:13px;color:var(--blue);text-decoration:none;}
+
+.hero{padding:60px 24px 40px;text-align:center;}
+.hero h1{font-size:clamp(28px,5vw,40px);font-weight:700;letter-spacing:-0.03em;margin-bottom:8px;}
+.hero p{color:var(--t2);font-size:15px;max-width:500px;margin:0 auto 16px;line-height:1.6;}
+.demo-badge{display:inline-block;padding:4px 14px;border-radius:980px;background:rgba(255,159,10,0.12);color:var(--orange);font-size:12px;font-weight:600;}
+
+.container{max-width:900px;margin:0 auto;padding:0 24px 60px;}
+.card{background:var(--s);border:1px solid var(--b);border-radius:var(--r);padding:24px;margin-bottom:20px;}
+.card h2{font-size:13px;font-weight:600;color:var(--t3);text-transform:uppercase;letter-spacing:0.06em;margin-bottom:16px;}
+
+.input-row{display:flex;gap:10px;margin-bottom:12px;}
+.input-row input{flex:1;padding:12px 18px;border:1.5px solid rgba(255,255,255,0.1);border-radius:980px;font-size:15px;background:var(--s);color:var(--t1);outline:none;}
+.input-row input:focus{border-color:var(--accent);}
+.input-row input::placeholder{color:var(--t3);}
+.input-row button{padding:12px 24px;background:var(--accent);color:#fff;border:none;border-radius:980px;font-size:15px;cursor:pointer;font-weight:500;white-space:nowrap;transition:all 0.2s;}
+.input-row button:hover{filter:brightness(1.15);}
+
+.quick-row{display:flex;gap:8px;flex-wrap:wrap;}
+.quick-item{padding:6px 14px;background:rgba(191,90,242,0.08);border:1px solid rgba(191,90,242,0.15);border-radius:980px;font-size:13px;color:var(--t2);cursor:pointer;transition:all 0.2s;}
+.quick-item:hover{background:var(--accent);color:#fff;border-color:var(--accent);}
+
+.stat-row{display:flex;gap:12px;margin-bottom:20px;}
+.stat-box{flex:1;background:var(--s);border:1px solid var(--b);border-radius:12px;padding:16px;text-align:center;}
+.stat-box .num{font-size:32px;font-weight:800;}
+.stat-box .label{font-size:11px;color:var(--t3);margin-top:4px;}
+
+#pipeline{display:none;}
+
+.step{display:flex;align-items:flex-start;gap:14px;margin-bottom:4px;animation:fadeIn 0.4s ease both;}
+@keyframes fadeIn{from{opacity:0;transform:translateY(10px);}to{opacity:1;transform:translateY(0);}}
+.step-num{width:32px;height:32px;background:var(--accent);color:#fff;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:14px;font-weight:600;flex-shrink:0;}
+.step-content{flex:1;}
+.step-name{font-size:12px;color:var(--t3);text-transform:uppercase;letter-spacing:0.04em;}
+.step-result{margin-top:4px;padding:10px 14px;background:rgba(191,90,242,0.06);border-radius:10px;font-size:14px;border-left:3px solid var(--accent);line-height:1.5;}
+.step-arrow{width:32px;text-align:center;color:rgba(255,255,255,0.1);font-size:18px;margin-bottom:4px;}
+
+.final-box{padding:16px;border-radius:12px;margin-top:16px;font-size:14px;line-height:1.6;}
+.final-high{background:rgba(255,69,58,0.08);border:1px solid rgba(255,69,58,0.15);color:#ff6961;}
+.final-low{background:rgba(48,209,88,0.08);border:1px solid rgba(48,209,88,0.15);color:#86efac;}
+
+.history-item{padding:12px 0;border-bottom:1px solid rgba(255,255,255,0.04);display:flex;justify-content:space-between;align-items:center;font-size:14px;}
+.history-item:last-child{border-bottom:none;}
+.sev{padding:3px 12px;border-radius:980px;font-size:11px;font-weight:600;}
+.sev-h{background:rgba(255,69,58,0.12);color:var(--red);}
+.sev-m{background:rgba(255,159,10,0.12);color:var(--orange);}
+.sev-l{background:rgba(48,209,88,0.12);color:var(--green);}
+
+.tags{display:flex;gap:6px;flex-wrap:wrap;margin-top:20px;}
+.tag{padding:4px 12px;border-radius:980px;font-size:11px;background:rgba(255,255,255,0.05);color:var(--t2);}
+footer{text-align:center;padding:32px;font-size:12px;color:var(--t3);}
+</style>
+</head>
+<body>
+
+<nav><div class="inner"><div class="logo">LLM Orchestration</div><a class="back" href="../index.html">&larr; Portfolio</a></div></nav>
+
+<div class="hero">
+  <h1>LLM 多步驟編排系統</h1>
+  <p>Violation event &rarr; 5-step AI pipeline: Analyze &rarr; Classify &rarr; Lookup &rarr; Alert &rarr; Notify</p>
+  <span class="demo-badge">Static Demo</span>
+</div>
+
+<div class="container">
+
+  <div class="card">
+    <h2>Input Violation Event</h2>
+    <div class="input-row">
+      <input type="text" id="violationInput" placeholder="e.g. A區工人沒戴安全帽">
+      <button onclick="runPipeline()">AI Process</button>
+    </div>
+    <div class="quick-row">
+      <div class="quick-item" onclick="fill(this)">A區工人沒戴安全帽</div>
+      <div class="quick-item" onclick="fill(this)">高空作業未繫安全帶</div>
+      <div class="quick-item" onclick="fill(this)">逃生通道被雜物堵住</div>
+      <div class="quick-item" onclick="fill(this)">工地噪音超過90分貝</div>
+      <div class="quick-item" onclick="fill(this)">化學品桶未張貼標示</div>
+    </div>
+  </div>
+
+  <div class="stat-row">
+    <div class="stat-box"><div class="num" style="color:var(--accent);" id="totalStat">3</div><div class="label">Total Events</div></div>
+    <div class="stat-box"><div class="num" style="color:var(--red);" id="highStat">1</div><div class="label">High Severity</div></div>
+    <div class="stat-box"><div class="num" style="color:var(--orange);" id="alertStat">2</div><div class="label">Alerts Sent</div></div>
+  </div>
+
+  <div id="pipeline" class="card">
+    <h2 id="pipelineTitle">Processing...</h2>
+    <div id="stepsArea"></div>
+    <div id="finalResult"></div>
+  </div>
+
+  <div class="card">
+    <h2>Processing History</h2>
+    <div id="historyArea">
+      <div class="history-item"><div><div>高空作業未繫安全帶</div><div style="font-size:12px;color:var(--t3);">10:32 &middot; no_belt &middot; 【緊急】高空作業未繫安全帶，立即停工！</div></div><span class="sev sev-h">高</span></div>
+      <div class="history-item"><div><div>工地噪音超過90分貝</div><div style="font-size:12px;color:var(--t3);">09:45 &middot; noise &middot; 【注意】噪音超標，請配戴聽力防護具</div></div><span class="sev sev-m">中</span></div>
+      <div class="history-item"><div><div>化學品桶未張貼標示</div><div style="font-size:12px;color:var(--t3);">09:10 &middot; chemical &middot; 【提醒】化學品標示不全，請補貼</div></div><span class="sev sev-l">低</span></div>
+    </div>
+  </div>
+
+  <div class="tags">
+    <span class="tag">LangChain</span><span class="tag">LCEL</span><span class="tag">SafetyState</span><span class="tag">Gemini API</span><span class="tag">FastAPI</span>
+  </div>
+</div>
+
+<footer>LLM Orchestration &mdash; Static Demo &middot; Built by Reyna Kao</footer>
+
+<script>
+var scenarios = {
+  "A區工人沒戴安全帽": {sev:"高",type:"no_helmet",reg:"職安法第281條：雇主應使勞工確實使用安全帽。罰鍰3~30萬元。",alert:"【緊急】A區工人未戴安全帽，立即要求佩戴！",notify:"是"},
+  "高空作業未繫安全帶": {sev:"高",type:"no_belt",reg:"職安法第225條：2公尺以上作業應使用安全帶。罰鍰3~30萬元。",alert:"【緊急】高空作業未繫安全帶，立即停工！",notify:"是"},
+  "逃生通道被雜物堵住": {sev:"中",type:"blocked_exit",reg:"建築技術規則第97條：緊急出口應保持暢通。",alert:"【注意】逃生通道堵塞，請立即清除",notify:"否"},
+  "工地噪音超過90分貝": {sev:"中",type:"noise",reg:"職安法第300條：噪音超標應提供聽力防護。",alert:"【注意】噪音超標，請配戴聽力防護具",notify:"否"},
+  "化學品桶未張貼標示": {sev:"低",type:"chemical",reg:"危化標示規則第5條：危險化學品應張貼標示。",alert:"【提醒】化學品標示不全，請補貼",notify:"否"}
+};
+var count = 3;
+
+function fill(el) { document.getElementById('violationInput').value = el.textContent; }
+
+function runPipeline() {
+  var text = document.getElementById('violationInput').value.trim();
+  if (!text) return;
+  var data = scenarios[text] || {sev:"中",type:"other",reg:"請查閱職業安全衛生法相關條文。",alert:"【注意】偵測到違規事件，請查核處理。",notify:"否"};
+
+  count++;
+  document.getElementById('totalStat').textContent = count;
+  if (data.sev === '高') document.getElementById('highStat').textContent = parseInt(document.getElementById('highStat').textContent) + 1;
+  document.getElementById('alertStat').textContent = parseInt(document.getElementById('alertStat').textContent) + 1;
+
+  var pipe = document.getElementById('pipeline');
+  pipe.style.display = 'block';
+  document.getElementById('pipelineTitle').textContent = 'Pipeline: ' + text;
+  var area = document.getElementById('stepsArea');
+  area.innerHTML = '';
+  document.getElementById('finalResult').innerHTML = '';
+
+  var steps = [
+    {name:"Analyze Severity",result:data.sev},
+    {name:"Classify Type",result:data.type},
+    {name:"Lookup Regulation",result:data.reg},
+    {name:"Generate Alert",result:data.alert},
+    {name:"Notify Supervisor?",result:data.notify}
+  ];
+
+  steps.forEach(function(s, i) {
+    setTimeout(function() {
+      if (i > 0) { var arrow = document.createElement('div'); arrow.className='step-arrow'; arrow.textContent='↓'; area.appendChild(arrow); }
+      var div = document.createElement('div');
+      div.className = 'step';
+      div.style.animationDelay = '0s';
+      div.innerHTML = '<div class="step-num">' + (i+1) + '</div><div class="step-content"><div class="step-name">Step ' + (i+1) + ': ' + s.name + '</div><div class="step-result">' + s.result + '</div></div>';
+      area.appendChild(div);
+      pipe.scrollIntoView({behavior:'smooth', block:'end'});
+
+      if (i === steps.length - 1) {
+        setTimeout(function() {
+          var cls = data.sev === '高' ? 'final-high' : 'final-low';
+          document.getElementById('finalResult').innerHTML = '<div class="final-box ' + cls + '">Alert: ' + data.alert + '<br>Notify supervisor: ' + data.notify + '</div>';
+        }, 300);
+      }
+    }, i * 500);
+  });
+
+  // Add to history
+  var sevCls = data.sev === '高' ? 'sev-h' : data.sev === '中' ? 'sev-m' : 'sev-l';
+  var now = new Date();
+  var time = now.getHours() + ':' + String(now.getMinutes()).padStart(2,'0');
+  var histItem = document.createElement('div');
+  histItem.className = 'history-item';
+  histItem.innerHTML = '<div><div>' + text + '</div><div style="font-size:12px;color:var(--t3);">' + time + ' &middot; ' + data.type + ' &middot; ' + data.alert + '</div></div><span class="sev ' + sevCls + '">' + data.sev + '</span>';
+  var hist = document.getElementById('historyArea');
+  hist.insertBefore(histItem, hist.firstChild);
+
+  document.getElementById('violationInput').value = '';
+}
+</script>
+</body>
+</html>

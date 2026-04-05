@@ -1,0 +1,451 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>工安影像辨識 AI 告警系統</title>
+<style>
+* { margin: 0; padding: 0; box-sizing: border-box; }
+body {
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", "Microsoft JhengHei", sans-serif;
+    background: #0f172a; color: #e2e8f0; min-height: 100vh;
+}
+
+/* Header */
+.header {
+    background: linear-gradient(135deg, #0f172a, #1e293b);
+    border-bottom: 1px solid #334155;
+    padding: 24px 32px;
+}
+.header h1 {
+    font-size: 24px;
+    background: linear-gradient(135deg, #60a5fa, #a78bfa);
+    -webkit-background-clip: text; -webkit-text-fill-color: transparent;
+}
+.header .sub { color: #64748b; font-size: 13px; margin-top: 4px; }
+.demo-badge {
+    display: inline-block; padding: 2px 10px; border-radius: 12px;
+    background: rgba(250,204,21,0.15); color: #fbbf24;
+    font-size: 11px; margin-left: 12px; vertical-align: middle;
+}
+
+/* Layout */
+.container { max-width: 1200px; margin: 0 auto; padding: 24px; }
+.grid { display: grid; grid-template-columns: 1fr 1fr; gap: 20px; margin-bottom: 24px; }
+@media (max-width: 768px) { .grid { grid-template-columns: 1fr; } }
+
+/* Cards */
+.card {
+    background: #1e293b; border: 1px solid #334155;
+    border-radius: 12px; padding: 20px;
+}
+.card h2 { font-size: 15px; color: #94a3b8; margin-bottom: 12px; }
+.card h2 span { font-size: 12px; margin-left: 6px; }
+
+/* Stats */
+.stat-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 12px; }
+.stat-item { text-align: center; }
+.stat-item .num {
+    font-size: 28px; font-weight: 700;
+    background: linear-gradient(135deg, #60a5fa, #a78bfa);
+    -webkit-background-clip: text; -webkit-text-fill-color: transparent;
+}
+.stat-item .label { font-size: 12px; color: #64748b; margin-top: 2px; }
+
+/* Upload */
+.upload-area {
+    border: 2px dashed #334155; border-radius: 10px;
+    padding: 30px; text-align: center; cursor: pointer;
+    transition: all 0.3s;
+}
+.upload-area:hover { border-color: #60a5fa; background: rgba(96,165,250,0.05); }
+.upload-area input { display: none; }
+.upload-area .icon { font-size: 36px; margin-bottom: 8px; }
+.upload-area p { color: #64748b; font-size: 14px; }
+
+/* Buttons */
+.btn {
+    display: inline-block; padding: 8px 20px; border-radius: 8px;
+    border: none; cursor: pointer; font-size: 14px; font-weight: 500;
+    text-decoration: none; transition: all 0.2s; margin: 4px;
+}
+.btn-primary { background: #3b82f6; color: white; }
+.btn-primary:hover { background: #2563eb; }
+.btn-success { background: #22c55e; color: white; }
+.btn-success:hover { background: #16a34a; }
+.btn-danger { background: #ef4444; color: white; }
+.btn-danger:hover { background: #dc2626; }
+.btn-outline {
+    background: transparent; color: #94a3b8;
+    border: 1px solid #334155;
+}
+.btn-outline:hover { border-color: #60a5fa; color: #60a5fa; }
+.btn-sm { padding: 4px 12px; font-size: 12px; }
+
+/* Actions bar */
+.actions { display: flex; gap: 8px; margin-bottom: 20px; flex-wrap: wrap; }
+
+/* Alert box */
+.alert {
+    padding: 14px 18px; border-radius: 10px; margin-bottom: 16px;
+    font-size: 14px; line-height: 1.6;
+}
+.alert-high { background: rgba(239,68,68,0.12); border: 1px solid rgba(239,68,68,0.3); color: #fca5a5; }
+.alert-low { background: rgba(34,197,94,0.12); border: 1px solid rgba(34,197,94,0.3); color: #86efac; }
+.alert-info { background: rgba(59,130,246,0.12); border: 1px solid rgba(59,130,246,0.3); color: #93c5fd; }
+.alert-warning { background: rgba(250,204,21,0.12); border: 1px solid rgba(250,204,21,0.3); color: #fde047; }
+
+/* Result detail */
+.result-section { margin-bottom: 16px; }
+.result-section h3 { font-size: 14px; color: #60a5fa; margin-bottom: 8px; }
+.result-section pre {
+    background: #0f172a; border: 1px solid #334155;
+    border-radius: 8px; padding: 12px; font-size: 12px;
+    overflow-x: auto; color: #94a3b8; line-height: 1.5;
+}
+
+/* Workflow steps */
+.steps { list-style: none; }
+.steps li {
+    padding: 8px 0; border-bottom: 1px solid #1e293b;
+    font-size: 13px; display: flex; align-items: center; gap: 8px;
+}
+.steps li:last-child { border-bottom: none; }
+.step-dot {
+    width: 8px; height: 8px; border-radius: 50%;
+    background: #22c55e; flex-shrink: 0;
+}
+
+/* Event list */
+.event-list { max-height: 500px; overflow-y: auto; }
+.event-item {
+    padding: 12px; border-bottom: 1px solid #334155;
+    display: flex; justify-content: space-between; align-items: center;
+    font-size: 13px;
+}
+.event-item:last-child { border-bottom: none; }
+.event-item:hover { background: rgba(255,255,255,0.02); }
+.event-id { color: #60a5fa; font-weight: 600; }
+.event-time { color: #475569; font-size: 12px; }
+.badge {
+    padding: 2px 8px; border-radius: 10px; font-size: 11px; font-weight: 500;
+}
+.badge-high { background: rgba(239,68,68,0.2); color: #fca5a5; }
+.badge-low { background: rgba(34,197,94,0.2); color: #86efac; }
+.badge-pending { background: rgba(250,204,21,0.2); color: #fde047; }
+.badge-approved { background: rgba(34,197,94,0.2); color: #86efac; }
+.badge-rejected { background: rgba(239,68,68,0.2); color: #fca5a5; }
+
+/* Threshold */
+.threshold-bar {
+    height: 8px; background: #334155; border-radius: 4px;
+    margin: 8px 0; position: relative;
+}
+.threshold-fill {
+    height: 100%; border-radius: 4px;
+    background: linear-gradient(90deg, #ef4444, #fbbf24, #22c55e);
+}
+.threshold-marker {
+    position: absolute; top: -4px; width: 3px; height: 16px;
+    background: white; border-radius: 2px;
+}
+.threshold-val { text-align: center; font-size: 20px; font-weight: 700; color: #60a5fa; }
+
+/* Report */
+.report-text {
+    background: #0f172a; border: 1px solid #334155;
+    border-radius: 8px; padding: 16px;
+    font-size: 14px; line-height: 1.8; color: #cbd5e1;
+    white-space: pre-wrap;
+}
+
+/* Review form */
+.review-form {
+    display: flex; gap: 8px; align-items: center; margin-top: 8px;
+}
+.review-form input {
+    flex: 1; padding: 6px 12px; border-radius: 6px;
+    border: 1px solid #334155; background: #0f172a; color: #e2e8f0;
+    font-size: 13px;
+}
+
+/* Tech tags */
+.tech-tags { display: flex; gap: 6px; flex-wrap: wrap; margin-top: 16px; }
+.tech-tag {
+    padding: 3px 10px; border-radius: 12px; font-size: 11px;
+    background: rgba(255,255,255,0.06); border: 1px solid rgba(255,255,255,0.1);
+    color: #94a3b8;
+}
+
+/* Footer */
+.footer { text-align: center; padding: 30px; color: #475569; font-size: 12px; }
+</style>
+</head>
+<body>
+
+<!-- Header -->
+<div class="header">
+    <h1>
+        工安影像辨識 AI 告警系統
+        {% if demo_mode %}<span class="demo-badge">Demo Mode</span>{% endif %}
+    </h1>
+    <div class="sub">YOLOv8 偵測 → KMeans 校準 → LangGraph Workflow → LLM 報告</div>
+</div>
+
+<div class="container">
+
+    <!-- Quick Actions -->
+    <div class="actions">
+        <a class="btn btn-outline" href="/">Dashboard</a>
+        <a class="btn btn-outline" href="/recalibrate">KMeans 重新校準</a>
+        <a class="btn btn-outline" href="/report">生成每日報告</a>
+        <a class="btn btn-outline" href="/events">API: 事件列表</a>
+        <a class="btn btn-outline" href="/api/health">API: 健康檢查</a>
+    </div>
+
+    <!-- Calibration Result -->
+    {% if calibration %}
+    <div class="alert alert-info">
+        <strong>KMeans 校準結果</strong><br>
+        {% if calibration.status == 'calibrated' %}
+        門檻更新：{{ calibration.old_threshold }} → <strong>{{ calibration.new_threshold }}</strong><br>
+        群心：{{ calibration.cluster_centers }} ｜ 樣本：{{ calibration.sample_count }} 筆
+        （高信心群 {{ calibration.high_cluster_size }} / 低信心群 {{ calibration.low_cluster_size }}）
+        {% else %}
+        資料不足（{{ calibration.sample_count }}/{{ calibration.min_required }} 筆），請先偵測更多影像。
+        {% endif %}
+    </div>
+    {% endif %}
+
+    <!-- Review Done -->
+    {% if review_done %}
+    <div class="alert {% if review_done.action == 'approve' %}alert-low{% else %}alert-high{% endif %}">
+        事件 {{ review_done.event_id }} 已{% if review_done.action == 'approve' %}核准{% else %}駁回{% endif %}。
+    </div>
+    {% endif %}
+
+    <!-- Daily Report -->
+    {% if report %}
+    <div class="card" style="margin-bottom: 20px;">
+        <h2>每日摘要報告 <span>{{ report.date }}</span></h2>
+        <div class="report-text">{{ report.report }}</div>
+        <div style="margin-top: 12px; font-size: 12px; color: #475569;">
+            總事件：{{ report.stats.total_events }} ｜
+            違規人次：{{ report.stats.total_violations }} ｜
+            高風險：{{ report.stats.high_risk_count }}
+        </div>
+    </div>
+    {% endif %}
+
+    <div class="grid">
+        <!-- Left: Upload + Result -->
+        <div>
+            <!-- Upload Card -->
+            <div class="card" style="margin-bottom: 20px;">
+                <h2>上傳工地影像</h2>
+                <form action="/detect" method="post" enctype="multipart/form-data" id="uploadForm">
+                    <label class="upload-area" id="dropArea">
+                        <div class="icon">📷</div>
+                        <p id="fileName">點擊或拖放影像檔案</p>
+                        <p style="font-size: 12px; margin-top: 4px;">支援 JPG / PNG</p>
+                        <input type="file" name="file" accept="image/*" id="fileInput">
+                    </label>
+                    <div style="text-align: center; margin-top: 12px;">
+                        <button type="submit" class="btn btn-primary">開始偵測</button>
+                        <button type="submit" class="btn btn-outline" formaction="/detect">Demo 模擬</button>
+                    </div>
+                </form>
+            </div>
+
+            <!-- Detection Result -->
+            {% if result %}
+            <div class="card">
+                <h2>偵測結果 <span>{{ result.id }}</span></h2>
+
+                <!-- Alert -->
+                <div class="alert {% if result.workflow.risk_level == 'high' %}alert-high{% else %}alert-low{% endif %}">
+                    {{ result.workflow.alert_message }}
+                </div>
+
+                <!-- YOLO Result -->
+                <div class="result-section">
+                    <h3>YOLO 偵測</h3>
+                    <div class="stat-grid" style="margin-bottom: 12px;">
+                        <div class="stat-item">
+                            <div class="num">{{ result.yolo_result.helmet_count }}</div>
+                            <div class="label">戴安全帽</div>
+                        </div>
+                        <div class="stat-item">
+                            <div class="num" style="background: linear-gradient(135deg, #ef4444, #f97316); -webkit-background-clip: text; -webkit-text-fill-color: transparent;">
+                                {{ result.yolo_result.no_helmet_count }}
+                            </div>
+                            <div class="label">未戴安全帽</div>
+                        </div>
+                        <div class="stat-item">
+                            <div class="num">{{ result.yolo_result.detections|length }}</div>
+                            <div class="label">偵測目標</div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Rules Triggered -->
+                {% if result.triggered_rules %}
+                <div class="result-section">
+                    <h3>觸發規則</h3>
+                    {% for rule in result.triggered_rules %}
+                    <div style="font-size: 13px; padding: 4px 0; color: {% if rule.severity == 'high' %}#fca5a5{% elif rule.severity == 'medium' %}#fde047{% else %}#86efac{% endif %};">
+                        {{ rule.description }} ({{ rule.severity }})
+                    </div>
+                    {% endfor %}
+                </div>
+                {% endif %}
+
+                <!-- Workflow Steps -->
+                <div class="result-section">
+                    <h3>LangGraph Workflow</h3>
+                    <ul class="steps">
+                        {% for step in result.workflow.steps %}
+                        <li>
+                            <span class="step-dot"></span>
+                            <strong>{{ step.node }}</strong>：
+                            {{ step.result[:60] if step.result else '' }}
+                        </li>
+                        {% endfor %}
+                    </ul>
+                </div>
+
+                <!-- HITL Review -->
+                {% if result.workflow.review_status == 'pending' %}
+                <div class="result-section">
+                    <h3>主管審核 (Human-in-the-Loop)</h3>
+                    <div class="alert alert-warning">此為高風險事件，需要主管審核。</div>
+                    <form action="/review/{{ result.id }}" method="post" class="review-form">
+                        <input type="text" name="comment" placeholder="審核意見（選填）">
+                        <button type="submit" name="action" value="approve" class="btn btn-success btn-sm">核准</button>
+                        <button type="submit" name="action" value="reject" class="btn btn-danger btn-sm">駁回</button>
+                    </form>
+                </div>
+                {% endif %}
+            </div>
+            {% endif %}
+        </div>
+
+        <!-- Right: Stats + Events -->
+        <div>
+            <!-- Stats Card -->
+            <div class="card" style="margin-bottom: 20px;">
+                <h2>系統統計</h2>
+                <div class="stat-grid">
+                    <div class="stat-item">
+                        <div class="num">{{ stats.total_events }}</div>
+                        <div class="label">總事件</div>
+                    </div>
+                    <div class="stat-item">
+                        <div class="num" style="background: linear-gradient(135deg, #ef4444, #f97316); -webkit-background-clip: text; -webkit-text-fill-color: transparent;">
+                            {{ stats.total_violations }}
+                        </div>
+                        <div class="label">違規人次</div>
+                    </div>
+                    <div class="stat-item">
+                        <div class="num">{{ stats.high_risk_count }}</div>
+                        <div class="label">高風險</div>
+                    </div>
+                </div>
+
+                <!-- Threshold -->
+                <div style="margin-top: 16px;">
+                    <h2>KMeans 信心度門檻</h2>
+                    <div class="threshold-val">{{ "%.2f"|format(threshold.current_threshold) }}</div>
+                    <div class="threshold-bar">
+                        <div class="threshold-fill" style="width: 100%;"></div>
+                        <div class="threshold-marker" style="left: {{ (threshold.current_threshold * 100)|int }}%;"></div>
+                    </div>
+                    <div style="display: flex; justify-content: space-between; font-size: 11px; color: #475569;">
+                        <span>0.0 低</span>
+                        <span>校準次數：{{ threshold.calibration_count }}</span>
+                        <span>高 1.0</span>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Event List -->
+            <div class="card">
+                <h2>事件紀錄 <span>(最近 20 筆)</span></h2>
+                {% if events %}
+                <div class="event-list">
+                    {% for evt in events %}
+                    <div class="event-item">
+                        <div>
+                            <span class="event-id">{{ evt.id }}</span>
+                            <span class="badge badge-{{ evt.workflow.risk_level }}">{{ evt.workflow.risk_level }}</span>
+                            <span class="badge badge-{{ evt.workflow.review_status }}">{{ evt.workflow.review_status }}</span>
+                        </div>
+                        <div>
+                            <span style="color: #94a3b8;">{{ evt.yolo_result.no_helmet_count }} 違規</span>
+                            <span class="event-time">{{ evt.timestamp }}</span>
+                        </div>
+                    </div>
+                    {% endfor %}
+                </div>
+                {% else %}
+                <div style="text-align: center; padding: 30px; color: #475569;">
+                    尚無事件。上傳影像開始偵測。
+                </div>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+
+    <!-- Tech Stack -->
+    <div class="tech-tags">
+        <span class="tech-tag">YOLOv8</span>
+        <span class="tech-tag">LangGraph</span>
+        <span class="tech-tag">LangChain</span>
+        <span class="tech-tag">FastAPI</span>
+        <span class="tech-tag">scikit-learn</span>
+        <span class="tech-tag">KMeans</span>
+        <span class="tech-tag">Gemini API</span>
+        <span class="tech-tag">pandas</span>
+        <span class="tech-tag">Python</span>
+    </div>
+</div>
+
+<div class="footer">Built by Reyna Kao</div>
+
+<script>
+// File upload UX
+const fileInput = document.getElementById('fileInput');
+const fileName = document.getElementById('fileName');
+const dropArea = document.getElementById('dropArea');
+
+fileInput.addEventListener('change', (e) => {
+    if (e.target.files.length > 0) {
+        fileName.textContent = e.target.files[0].name;
+        dropArea.style.borderColor = '#60a5fa';
+    }
+});
+
+dropArea.addEventListener('dragover', (e) => {
+    e.preventDefault();
+    dropArea.style.borderColor = '#60a5fa';
+    dropArea.style.background = 'rgba(96,165,250,0.08)';
+});
+
+dropArea.addEventListener('dragleave', () => {
+    dropArea.style.borderColor = '#334155';
+    dropArea.style.background = 'transparent';
+});
+
+dropArea.addEventListener('drop', (e) => {
+    e.preventDefault();
+    fileInput.files = e.dataTransfer.files;
+    if (e.dataTransfer.files.length > 0) {
+        fileName.textContent = e.dataTransfer.files[0].name;
+    }
+    dropArea.style.borderColor = '#60a5fa';
+    dropArea.style.background = 'transparent';
+});
+</script>
+
+</body>
+</html>

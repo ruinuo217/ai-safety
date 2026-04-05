@@ -1,0 +1,31 @@
+# rules.yaml -- 工安告警規則定義
+# YOLO Inference → Event JSON → Rule Engine 產生觸發規則
+
+rules:
+  - name: "single_no_helmet"
+    description: "單人未戴安全帽"
+    condition:
+      no_helmet_count: ">= 1"
+    severity: "medium"
+    action: "log_and_alert"
+
+  - name: "multiple_no_helmet"
+    description: "多人未戴安全帽（3人以上）"
+    condition:
+      no_helmet_count: ">= 3"
+    severity: "high"
+    action: "alert_and_escalate"
+
+  - name: "high_violation_ratio"
+    description: "違規比例超過 50%"
+    condition:
+      violation_ratio: "> 0.5"
+    severity: "high"
+    action: "alert_and_escalate"
+
+  - name: "all_compliant"
+    description: "全員合規"
+    condition:
+      no_helmet_count: "== 0"
+    severity: "info"
+    action: "log_only"
