@@ -21,12 +21,59 @@ from langgraph.graph import StateGraph, START, END
 from langchain_google_genai import ChatGoogleGenerativeAI
 from langchain_core.prompts import ChatPromptTemplate
 from langchain_core.output_parsers import StrOutputParser
+from langchain_core.tools import tool
 from typing_extensions import TypedDict
+
+from rule_engine import load_rules
 
 load_dotenv()
 
 llm = ChatGoogleGenerativeAI(model="gemini-2.5-flash", temperature=0.3)
 parser = StrOutputParser()
+
+
+# ============================================================
+# Tool 定義 — 讓 LLM 自行決定是否查詢法規
+# ============================================================
+@tool
+def query_regulation(violation_type: str) -> str:
+    """查詢工安法規規則。根據違規類型（如 no_helmet、high_ratio、compliant）
+    回傳對應的規則名稱、嚴重程度與處置方式。"""
+    rules = load_rules()
+    matched = []
+    keyword_map = {
+        "no_helmet": ["single_no_helmet", "multiple_no_helmet"],
+        "helmet": ["single_no_helmet", "multiple_no_helmet"],
+        "ratio": ["high_violation_ratio"],
+        "high_ratio": ["high_violation_ratio"],
+        "compliant": ["all_compliant"],
+        "all": [r["name"] for r in rules],
+    }
+
+    # 模糊匹配：用關鍵字找對應規則
+    target_names = set()
+    for key, names in keyword_map.items():
+        if key in violation_type.lower():
+            target_names.update(names)
+
+    # 如果沒匹配到，回傳全部規則
+    if not target_names:
+        target_names = {r["name"] for r in rules}
+
+    for rule in rules:
+        if rule["name"] in target_names:
+            matched.append(
+                f"- {rule['name']}：{rule['description']}｜"
+                f"嚴重程度={rule['severity']}｜處置={rule['action']}"
+            )
+
+    if not matched:
+        return "查無相關法規規則。"
+    return "相關工安規則：\n" + "\n".join(matched)
+
+
+# 綁定 Tool 的 LLM（用於 llm_analyze 節點）
+llm_with_tools = llm.bind_tools([query_regulation])
 
 
 # ============================================================
@@ -54,10 +101,11 @@ class AlertState(TypedDict):
 analyze_prompt = ChatPromptTemplate.from_messages([
     ("system",
      "你是工安 AI 分析師。分析以下 YOLO 偵測結果，指出違規情況與風險。"
-     "回覆格式：1) 違規摘要 2) 風險評估 3) 建議措施。控制在 100 字內。"),
+     "你可以使用 query_regulation 工具查詢對應的工安法規規則，再根據法規給出建議。"
+     "回覆格式：1) 違規摘要 2) 風險評估 3) 法規依據 4) 建議措施。控制在 150 字內。"),
     ("human", "偵測結果：\n未戴安全帽人數：{no_helmet_count}\n戴安全帽人數：{helmet_count}\n偵測明細：{detections}")
 ])
-analyze_chain = analyze_prompt | llm | parser
+analyze_chain = analyze_prompt | llm | parser  # 保留舊 chain 作為 fallback
 
 alert_prompt = ChatPromptTemplate.from_messages([
     ("system",
@@ -94,16 +142,43 @@ def classify_risk(state: AlertState) -> dict:
 
 
 def llm_analyze(state: AlertState) -> dict:
-    """LLM 分析偵測結果"""
+    """LLM 分析偵測結果 — 支援 Tool Calling（自動查詢法規）"""
     event = state["event"]
     retry = state.get("retry_count", 0)
 
     try:
-        analysis = analyze_chain.invoke({
-            "no_helmet_count": event.get("no_helmet_count", 0),
-            "helmet_count": event.get("helmet_count", 0),
-            "detections": str(event.get("detections", [])),
-        })
+        messages = analyze_prompt.format_messages(
+            no_helmet_count=event.get("no_helmet_count", 0),
+            helmet_count=event.get("helmet_count", 0),
+            detections=str(event.get("detections", [])),
+        )
+
+        # 第一次呼叫：LLM 可能回覆內容，也可能回覆 tool_calls
+        response = llm_with_tools.invoke(messages)
+
+        # 如果 LLM 決定呼叫 Tool（query_regulation）
+        if response.tool_calls:
+            tool_results = []
+            for tc in response.tool_calls:
+                if tc["name"] == "query_regulation":
+                    result = query_regulation.invoke(tc["args"])
+                    tool_results.append(result)
+
+            # 把 Tool 結果餵回 LLM，讓它生成最終分析
+            from langchain_core.messages import ToolMessage
+            messages.append(response)
+            for i, tc in enumerate(response.tool_calls):
+                messages.append(ToolMessage(
+                    content=tool_results[i] if i < len(tool_results) else "",
+                    tool_call_id=tc["id"],
+                ))
+            final_response = llm.invoke(messages)
+            analysis = final_response.content
+            used_tool = True
+        else:
+            analysis = response.content
+            used_tool = False
+
         return {
             "analysis": analysis,
             "error": "",
@@ -111,6 +186,7 @@ def llm_analyze(state: AlertState) -> dict:
                 "node": "llm_analyze",
                 "result": analysis[:80],
                 "retry": retry,
+                "used_tool": used_tool,
             }],
         }
     except Exception as e:
